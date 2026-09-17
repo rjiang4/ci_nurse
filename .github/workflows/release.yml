@@ -38,7 +38,7 @@ jobs:
             --onefile `
             --windowed `
             --name "CI-Nurse" `
-            gui.py
+            app\gui.py
 
       - name: Install Inno Setup
         shell: pwsh
@@ -92,7 +92,7 @@ jobs:
             --onefile \
             --windowed \
             --name "CI-Nurse" \
-            gui.py
+            app/gui.py
 
       - name: Build deb package
         run: |
