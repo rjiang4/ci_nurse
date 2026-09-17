@@ -30,7 +30,7 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Build Windows executable
-      	working-directory: app
+        working-directory: app
         shell: pwsh
         run: |
           pyinstaller `
@@ -43,12 +43,15 @@ jobs:
 
       - name: Install Inno Setup
         shell: pwsh
-        run: choco install innosetup -y --no-progress
+        run: |
+          choco install innosetup -y --no-progress
 
       - name: Build installer
+        working-directory: app
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}".TrimStart("v")
+
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
             "/DMyAppVersion=$version" `
             "packaging\windows\ci_nurse_installer.iss"
@@ -57,13 +60,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: installer/CI-Nurse-Setup.exe
+          path: app/installer/CI-Nurse-Setup.exe
           if-no-files-found: error
 
 
   build-linux:
     name: Linux package
-    working-directory: app
     runs-on: ubuntu-latest
 
     steps:
@@ -87,7 +89,7 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Build Linux executable
-      	working-directory: app
+        working-directory: app
         run: |
           pyinstaller \
             --noconfirm \
@@ -98,6 +100,7 @@ jobs:
             gui.py
 
       - name: Build deb package
+        working-directory: app
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           chmod +x packaging/linux/build_deb.sh
@@ -107,12 +110,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-installer
-          path: installer/*.deb
+          path: app/installer/*.deb
           if-no-files-found: error
 
 
   release:
     name: Publish GitHub Release
+
     needs:
       - build-windows
       - build-linux
