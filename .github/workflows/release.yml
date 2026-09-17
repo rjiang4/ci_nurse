@@ -11,6 +11,7 @@ permissions:
 jobs:
   build-windows:
     name: Windows installer
+    working-directory: app
     runs-on: windows-latest
 
     steps:
@@ -38,7 +39,7 @@ jobs:
             --onefile `
             --windowed `
             --name "CI-Nurse" `
-            app\gui.py
+            gui.py
 
       - name: Install Inno Setup
         shell: pwsh
@@ -50,7 +51,7 @@ jobs:
           $version = "${{ github.ref_name }}".TrimStart("v")
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
             "/DMyAppVersion=$version" `
-            "app\packaging\windows\ci_nurse_installer.iss"
+            "packaging\windows\ci_nurse_installer.iss"
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
@@ -62,6 +63,7 @@ jobs:
 
   build-linux:
     name: Linux package
+    working-directory: app
     runs-on: ubuntu-latest
 
     steps:
@@ -92,13 +94,13 @@ jobs:
             --onefile \
             --windowed \
             --name "CI-Nurse" \
-            app/gui.py
+            gui.py
 
       - name: Build deb package
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          chmod +x app/packaging/linux/build_deb.sh
-          app/packaging/linux/build_deb.sh "$VERSION"
+          chmod +x packaging/linux/build_deb.sh
+          packaging/linux/build_deb.sh "$VERSION"
 
       - name: Upload Linux package
         uses: actions/upload-artifact@v4
