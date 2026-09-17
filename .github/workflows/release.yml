@@ -11,7 +11,6 @@ permissions:
 jobs:
   build-windows:
     name: Windows installer
-    working-directory: app
     runs-on: windows-latest
 
     steps:
@@ -31,6 +30,7 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Build Windows executable
+      	working-directory: app
         shell: pwsh
         run: |
           pyinstaller `
@@ -87,6 +87,7 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Build Linux executable
+      	working-directory: app
         run: |
           pyinstaller \
             --noconfirm \
