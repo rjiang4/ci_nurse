@@ -1,4 +1,6 @@
 import threading
+import re
+import webbrowser
 import tkinter as tk
 from tkinter import messagebox
 
@@ -440,6 +442,8 @@ class ScrollableChat(tk.Frame):
 
 
 class RoundedMessageBubble(tk.Canvas):
+    URL_PATTERN = re.compile(r"https?://[^\s<>\"']+")
+
     def __init__(
         self,
         master,
@@ -459,21 +463,23 @@ class RoundedMessageBubble(tk.Canvas):
         bubble_bg = USER_BUBBLE if is_user else AGENT_BUBBLE
         text_fg = USER_TEXT if is_user else AGENT_TEXT
 
-        # Measure the wrapped text first.
         temp = tk.Label(
             master,
             text=message,
             font=self.font,
             wraplength=max_width - (self.pad_x * 2),
             justify="left",
+            bd=0,
+            padx=0,
+            pady=0,
         )
         temp.update_idletasks()
 
         text_width = min(
-            temp.winfo_reqwidth(),
+            max(temp.winfo_reqwidth(), 24),
             max_width - (self.pad_x * 2),
         )
-        text_height = temp.winfo_reqheight()
+        text_height = max(temp.winfo_reqheight(), 20)
         temp.destroy()
 
         width = max(
@@ -503,15 +509,114 @@ class RoundedMessageBubble(tk.Canvas):
             fill=bubble_bg,
         )
 
-        self.create_text(
+        self.text_widget = tk.Text(
+            self,
+            wrap="word",
+            font=self.font,
+            bg=bubble_bg,
+            fg=text_fg,
+            insertbackground=text_fg,
+            selectbackground="#8AB4F8" if not is_user else "#74A9FF",
+            selectforeground=text_fg,
+            relief="flat",
+            borderwidth=0,
+            highlightthickness=0,
+            padx=0,
+            pady=0,
+            cursor="arrow",
+            takefocus=True,
+        )
+
+        self.text_widget.insert("1.0", message)
+
+        self.text_widget.bind("<Key>", self._block_edit)
+        self.text_widget.bind("<Control-c>", self._copy_selection)
+        self.text_widget.bind("<Control-C>", self._copy_selection)
+
+        self._add_link_tags(message, is_user)
+
+        self.create_window(
             self.pad_x,
             self.pad_y,
-            text=message,
-            fill=text_fg,
-            font=self.font,
             anchor="nw",
-            width=max_width - (self.pad_x * 2),
+            width=text_width,
+            height=text_height,
+            window=self.text_widget,
         )
+
+    def _block_edit(self, event):
+        if event.state & 0x4 and event.keysym.lower() == "c":
+            return None
+        return "break"
+
+    def _copy_selection(self, _event=None):
+        try:
+            selected = self.text_widget.get(
+                tk.SEL_FIRST,
+                tk.SEL_LAST,
+            )
+        except tk.TclError:
+            return "break"
+
+        self.clipboard_clear()
+        self.clipboard_append(selected)
+        return "break"
+
+    def _add_link_tags(self, message, is_user):
+        link_color = "#DDEBFF" if is_user else BLUE
+
+        for index, match in enumerate(self.URL_PATTERN.finditer(message)):
+            raw_url = match.group(0)
+            url = raw_url.rstrip(".,;:!?)]}")
+            trim_count = len(raw_url) - len(url)
+
+            start_offset = match.start()
+            end_offset = match.end() - trim_count
+
+            tag = f"url_{index}"
+
+            start_index = f"1.0+{start_offset}c"
+            end_index = f"1.0+{end_offset}c"
+
+            self.text_widget.tag_add(
+                tag,
+                start_index,
+                end_index,
+            )
+
+            self.text_widget.tag_configure(
+                tag,
+                foreground=link_color,
+                underline=True,
+            )
+
+            self.text_widget.tag_bind(
+                tag,
+                "<Enter>",
+                lambda _event: self.text_widget.configure(cursor="hand2"),
+            )
+
+            self.text_widget.tag_bind(
+                tag,
+                "<Leave>",
+                lambda _event: self.text_widget.configure(cursor="arrow"),
+            )
+
+            self.text_widget.tag_bind(
+                tag,
+                "<Button-1>",
+                lambda _event, link=url: self._open_link(link),
+            )
+
+    def _open_link(self, url):
+        try:
+            webbrowser.open_new_tab(url)
+        except Exception as exc:
+            messagebox.showerror(
+                "Unable to open link",
+                str(exc),
+            )
+        return "break"
 
     def _draw_rounded_rect(
         self,
@@ -522,11 +627,8 @@ class RoundedMessageBubble(tk.Canvas):
         radius,
         fill,
     ):
-        # True symmetric rounded rectangle:
-        # center rectangles + four equal corner circles.
         diameter = radius * 2
 
-        # Center body
         self.create_rectangle(
             x1 + radius,
             y1,
@@ -545,7 +647,6 @@ class RoundedMessageBubble(tk.Canvas):
             outline=fill,
         )
 
-        # Four identical corners
         self.create_oval(
             x1,
             y1,
