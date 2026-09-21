@@ -516,22 +516,30 @@ class RoundedMessageBubble(tk.Canvas):
             bg=bubble_bg,
             fg=text_fg,
             insertbackground=text_fg,
-            selectbackground="#8AB4F8" if not is_user else "#74A9FF",
-            selectforeground=text_fg,
+            selectbackground="#8AB4F8" if not is_user else "#FFFFFF",
+            selectforeground=TEXT if not is_user else USER_BUBBLE,
             relief="flat",
             borderwidth=0,
             highlightthickness=0,
             padx=0,
             pady=0,
-            cursor="arrow",
+            cursor="xterm",
             takefocus=True,
         )
 
         self.text_widget.insert("1.0", message)
 
+        self._url_tags = {}
+
         self.text_widget.bind("<Key>", self._block_edit)
         self.text_widget.bind("<Control-c>", self._copy_selection)
         self.text_widget.bind("<Control-C>", self._copy_selection)
+
+        # Explicit mouse handlers make URL clicking work identically
+        # for both user and CI Nurse messages.
+        self.text_widget.bind("<Button-1>", self._handle_text_click, add="+")
+        self.text_widget.bind("<Motion>", self._handle_text_motion, add="+")
+        self.text_widget.bind("<Leave>", self._handle_text_leave, add="+")
 
         self._add_link_tags(message, is_user)
 
@@ -590,23 +598,40 @@ class RoundedMessageBubble(tk.Canvas):
                 underline=True,
             )
 
-            self.text_widget.tag_bind(
-                tag,
-                "<Enter>",
-                lambda _event: self.text_widget.configure(cursor="hand2"),
-            )
+            self._url_tags[tag] = url
 
-            self.text_widget.tag_bind(
-                tag,
-                "<Leave>",
-                lambda _event: self.text_widget.configure(cursor="arrow"),
-            )
+    def _url_at_event(self, event):
+        try:
+            index = self.text_widget.index(f"@{event.x},{event.y}")
+            tags = self.text_widget.tag_names(index)
+        except tk.TclError:
+            return None
 
-            self.text_widget.tag_bind(
-                tag,
-                "<Button-1>",
-                lambda _event, link=url: self._open_link(link),
-            )
+        for tag in tags:
+            if tag in self._url_tags:
+                return self._url_tags[tag]
+
+        return None
+
+    def _handle_text_motion(self, event):
+        if self._url_at_event(event):
+            self.text_widget.configure(cursor="hand2")
+        else:
+            self.text_widget.configure(cursor="xterm")
+
+    def _handle_text_leave(self, _event):
+        self.text_widget.configure(cursor="xterm")
+
+    def _handle_text_click(self, event):
+        url = self._url_at_event(event)
+
+        if url:
+            self._open_link(url)
+            return "break"
+
+        # Do not return "break" for ordinary text.
+        # Tkinter's normal Text behavior then handles selection.
+        return None
 
     def _open_link(self, url):
         try:
