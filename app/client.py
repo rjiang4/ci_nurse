@@ -8,7 +8,7 @@ class AgentClient:
     the FastAPI server and returning Python data to the caller.
     """
 
-    def __init__(self, base_url: str, timeout: float = 30.0):
+    def __init__(self, base_url: str, timeout: float = 60.0):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.conversation_id: str | None = None
