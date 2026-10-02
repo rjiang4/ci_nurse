@@ -765,9 +765,11 @@ class ChatGUI(ctk.CTk):
                 padx=(4, 90),
             )
 
+            markdown_height = estimate_markdown_height(message)
+
             markdown = CTkMarkdown(
                 wrapper,
-                height=120,
+                height=markdown_height,
                 fg_color=CARD,
                 text_color=TEXT,
                 border_width=0,
@@ -782,15 +784,6 @@ class ChatGUI(ctk.CTk):
             )
 
             markdown.set_markdown(message)
-
-            # Expand the Markdown widget to fit all rendered content.
-            # This prevents long replies from being clipped inside the
-            # CTkMarkdown widget and keeps scrolling owned by chat_area.
-            self.after(
-                0,
-                self._fit_markdown_height,
-                markdown,
-            )
 
             # Add normal desktop right-click behavior to CTkMarkdown's
             # underlying Tk Text widget.
@@ -835,45 +828,6 @@ class ChatGUI(ctk.CTk):
             10,
             self._scroll_chat_to_bottom,
         )
-
-    def _fit_markdown_height(self, markdown):
-        """
-        Grow CTkMarkdown until its full rendered content is visible.
-
-        CTkMarkdown is a textbox internally, so a fixed/estimated height can
-        hide the bottom of long replies. The outer chat should be the only
-        scrollable area.
-        """
-        try:
-            markdown.update_idletasks()
-            textbox = markdown._textbox
-
-            # Start from a sensible minimum and grow until the textbox no
-            # longer has hidden vertical content.
-            height = max(markdown.winfo_height(), 120)
-            max_height = 12000
-
-            for _ in range(80):
-                markdown.configure(height=height)
-                markdown.update_idletasks()
-
-                first, last = textbox.yview()
-
-                if first <= 0.0001 and last >= 0.9999:
-                    break
-
-                height += 120
-
-                if height >= max_height:
-                    markdown.configure(height=max_height)
-                    break
-
-            # One final pass after geometry has settled.
-            markdown.update_idletasks()
-            self._scroll_chat_to_bottom()
-
-        except (AttributeError, tk.TclError):
-            pass
 
     # ------------------------------------------------------------------
     # Scrolling

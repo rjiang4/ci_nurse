@@ -1,1 +1,4 @@
-requests>=2.31
+requests
+customtkinter
+ctk-markdown
+pillow
